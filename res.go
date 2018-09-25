@@ -92,7 +92,10 @@ func extract(path string) (err error) {
 		func() {
 			f, err := os.Create(fn)
 			assert(err)
-			defer f.Close()
+			defer func() {
+				assert(f.Close())
+				assert(os.Chtimes(fn, hdr.ModTime, hdr.ModTime))
+			}()
 			_, err = io.Copy(f, tr)
 			assert(err)
 		}()
@@ -154,9 +157,10 @@ func Pack(root string) (err error) {
 		assert(err)
 		defer f.Close()
 		hdr := &tar.Header{
-			Name: p[len(root):],
-			Mode: 0600,
-			Size: fi.Size(),
+			Name:    p[len(root):],
+			Mode:    0600,
+			Size:    fi.Size(),
+			ModTime: fi.ModTime(),
 		}
 		assert(tw.WriteHeader(hdr))
 		_, err = io.Copy(tw, f)
