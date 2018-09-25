@@ -16,8 +16,9 @@ type ExtractPolicy int
 
 const (
 	NoOverwrite ExtractPolicy = iota
-	AlwaysOverwrite
 	OverwriteIfNewer
+	AlwaysOverwrite
+	Verbatim
 	magic = "GRES"
 )
 
@@ -56,12 +57,7 @@ func copySelf() string {
 	return fn
 }
 
-func extract(path string) (err error) {
-	defer func() {
-		if e := recover(); e != nil {
-			err = e.(error)
-		}
-	}()
+func extract(path string) {
 	assert(os.MkdirAll(path, 0700))
 	offset := int64(len(magic) + 4)
 	f, err := os.Open(os.Args[0])
@@ -72,7 +68,7 @@ func extract(path string) (err error) {
 	_, err = io.ReadFull(f, tag)
 	assert(err)
 	if string(tag[:len(magic)]) != magic {
-		return errors.New("invalid signature")
+		panic(errors.New("invalid signature"))
 	}
 	size := binary.BigEndian.Uint32(tag[len(magic):])
 	offset += int64(size)
@@ -100,16 +96,32 @@ func extract(path string) (err error) {
 			assert(err)
 		}()
 	}
-	return nil
 }
 
 func Extract(path string, policy ExtractPolicy) (err error) {
-	err = extract(path)
-	return err
+	defer func() {
+		if e := recover(); e != nil {
+			err = e.(error)
+		}
+	}()
+	if policy == Verbatim {
+		assert(os.RemoveAll(path))
+		extract(path)
+		return
+	}
+	tmp := path + ".tmp"
+	extract(tmp)
+	assert(filepath.Walk(tmp, func(p string, fi os.FileInfo, e error) error {
+		assert(e)
+		//TODO: move to destination, following policy
+		return nil
+	}))
+	os.RemoveAll(tmp)
+	return
 }
 
 func Pack(root string) (err error) {
-	f, err := ioutil.TempFile("", "gres*.tar.gz")
+	f, err := ioutil.TempFile("", magic+"*.tar.gz")
 	assert(err)
 	defer func() {
 		defer func() {
