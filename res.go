@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 type ExtractPolicy int
@@ -111,9 +112,37 @@ func Extract(path string, policy ExtractPolicy) (err error) {
 	}
 	tmp := path + ".tmp"
 	extract(tmp)
+	isNewer := func(fn string, t time.Time) (res bool) {
+		dst := strings.Replace(fn, tmp, path, 1)
+		st, err := os.Stat(dst)
+		if err != nil {
+			return true
+		}
+		return t.After(st.ModTime())
+	}
+	overwrite := func(fn string) {
+		dst := strings.Replace(fn, tmp, path, 1)
+		os.Remove(dst)
+		os.MkdirAll(filepath.Dir(dst), 0700)
+		os.Rename(fn, dst)
+	}
 	assert(filepath.Walk(tmp, func(p string, fi os.FileInfo, e error) error {
 		assert(e)
-		//TODO: move to destination, following policy
+		if fi.IsDir() {
+			return nil
+		}
+		shouldOverwrite := false
+		switch policy {
+		case NoOverwrite:
+			shouldOverwrite = isNewer(p, time.Time{})
+		case OverwriteIfNewer:
+			shouldOverwrite = isNewer(p, fi.ModTime())
+		case AlwaysOverwrite:
+			shouldOverwrite = true
+		}
+		if shouldOverwrite {
+			overwrite(p)
+		}
 		return nil
 	}))
 	os.RemoveAll(tmp)
