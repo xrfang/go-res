@@ -210,15 +210,3 @@ func Pack(root string) (err error) {
 	}))
 	return
 }
-
-func Strip() (err error) {
-	defer func() {
-		if e := recover(); e != nil {
-			err = e.(error)
-		}
-	}()
-	fn := copySelf()
-	assert(os.Remove(os.Args[0]))
-	assert(os.Rename(fn, os.Args[0]))
-	return
-}
