@@ -105,6 +105,9 @@ func Extract(path string, policy ExtractPolicy) (err error) {
 			err = e.(error)
 		}
 	}()
+	if path == "" || path == "/" {
+		panic(errors.New("Extract: path cannot be empty or root (/)"))
+	}
 	if policy == Verbatim {
 		assert(os.RemoveAll(path))
 		extract(path)
@@ -123,8 +126,8 @@ func Extract(path string, policy ExtractPolicy) (err error) {
 	overwrite := func(fn string) {
 		dst := strings.Replace(fn, tmp, path, 1)
 		os.Remove(dst)
-		os.MkdirAll(filepath.Dir(dst), 0700)
-		os.Rename(fn, dst)
+		assert(os.MkdirAll(filepath.Dir(dst), 0700))
+		assert(os.Rename(fn, dst))
 	}
 	assert(filepath.Walk(tmp, func(p string, fi os.FileInfo, e error) error {
 		assert(e)
