@@ -27,6 +27,8 @@ Extract extracts embeded resources to the `path` specified. `policy` is used to 
 |`AlwaysOverwrite`|_always_ overwrite file at destination with the on in resource pack|
 |`Verbatim`|if `path` exists, _remove_ it with _all_ its contents, then extract resources to (newly created) `path`|
 
+**CAUTION**： be careful when using the `Verbatim` policy, as it will remove the path **completely**, if you specify a wrong path, data loss will occur. As a protection, the `Extract()` function prohibits empty or root path `("/")`.
+
 ## The Use Case
 
 Usually `go-res` is used at the beginning of the application's main function:
