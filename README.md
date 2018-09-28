@@ -20,13 +20,39 @@ Pack collect all files under directory `root` and its sub-directories, append th
 
 Extract extracts embeded resources to the `path` specified. `policy` is used to control content overwriting behavior:
 
-|policy  |logic  |typical use  |
-|-- |-- |--|
-|**NoOverwrite**|if a file exists at destination location, it will _not_ be overwritten||
-|**OverwriteIfNewer**|only overwrite a file if the one in resource pack is newer||
-|**AlwaysOverwrite**|always overwrite file at destination||
-|**Verbatim**|remove `path` tree if it exists, then extract resource to `path`, creating all directories as needed||
+|policy  |logic  |
+|-- |-- |
+|`NoOverwrite`|if a file exists at destination location, it will _not_ be overwritten|
+|`OverwriteIfNewer`|_only_ overwrite a file if the one in resource pack is _newer_|
+|`AlwaysOverwrite`|_always_ overwrite file at destination with the on in resource pack|
+|`Verbatim`|if `path` exists, _remove_ it with _all_ its contents, then extract resources to (newly created) `path`|
 
 ## The Use Case
 
+Usually `go-res` is used at the beginning of the application's main function:
+
+    func main() {
+        pack := flag.String("pack", "", "pack specified directory as attached resources")
+        webroot := flag.String("wwwroot", "../webroot", "root directory for resources")
+        flag.Parse()
+        if *pack != nil {
+            assert(res.Pack(*pack))
+            return
+        }
+        res.Extract(*webroot, res.OverwriteIfNewer)
+    }
+
+Resources are extracted on the launch of application. Afterwards, the application just use resources as normal files.
+
 ## The Pros & Cons
+
+### Pros
+
+* simple
+* no runtime performance penalty
+* debugging friendly, changes can be made after application is deployed
+
+### Cons
+
+* not compatible with executable packers such as UPX. 
+* not thoroughly tested, comparing to [go-bindata](https://github.com/go-bindata/go-bindata) etc.
