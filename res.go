@@ -61,7 +61,9 @@ func copySelf() string {
 func extract(path string) {
 	assert(os.MkdirAll(path, 0700))
 	offset := int64(len(magic) + 4)
-	f, err := os.Open(os.Args[0])
+	exe, err := os.Executable()
+	assert(err)
+	f, err := os.Open(exe)
 	assert(err)
 	defer f.Close()
 	f.Seek(-offset, 2)
