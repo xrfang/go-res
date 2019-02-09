@@ -46,7 +46,8 @@ func copySelf() string {
 	_, err = io.Copy(fo, fi)
 	assert(err)
 	offset := int64(len(magic) + 4)
-	fo.Seek(-offset, 2)
+	_, err = fo.Seek(-offset, 2)
+	assert(err)
 	tag := make([]byte, offset)
 	_, err = io.ReadFull(fo, tag)
 	assert(err)
@@ -66,7 +67,8 @@ func extract(path string) {
 	f, err := os.Open(exe)
 	assert(err)
 	defer f.Close()
-	f.Seek(-offset, 2)
+	_, err = f.Seek(-offset, 2)
+	assert(err)
 	tag := make([]byte, offset)
 	_, err = io.ReadFull(f, tag)
 	assert(err)
@@ -75,7 +77,8 @@ func extract(path string) {
 	}
 	size := binary.BigEndian.Uint32(tag[len(magic):])
 	offset += int64(size)
-	f.Seek(-offset, 2)
+	_, err = f.Seek(-offset, 2)
+	assert(err)
 	zr, err := gzip.NewReader(f)
 	assert(err)
 	defer zr.Close()
@@ -150,50 +153,26 @@ func Extract(path string, policy ExtractPolicy) (err error) {
 		}
 		return nil
 	}))
-	os.RemoveAll(tmp)
-	return
+	return os.RemoveAll(tmp)
 }
 
 func Pack(root string) (err error) {
+	defer func() {
+		if e := recover(); e != nil {
+			err = e.(error)
+		}
+	}()
 	f, err := ioutil.TempFile("", magic+"*.tar.gz")
 	assert(err)
 	defer func() {
-		defer func() {
-			f.Close()
-		}()
-		_, err := f.Seek(0, 0)
-		assert(err)
-		fn := copySelf()
-		g, err := os.OpenFile(fn, os.O_WRONLY|os.O_APPEND, 0755)
-		assert(err)
-		defer func() {
-			err := f.Close()
-			if e := recover(); e != nil {
-				panic(e)
-			}
-			assert(err)
-			assert(os.Remove(os.Args[0]))
-			assert(os.Rename(fn, os.Args[0]))
-			assert(os.Chmod(os.Args[0], 0755))
-		}()
-		n, err := io.Copy(g, f)
-		assert(err)
-		sig := append([]byte(magic), 0, 0, 0, 0)
-		binary.BigEndian.PutUint32(sig[4:], uint32(n))
-		_, err = g.Write(sig)
-		assert(err)
+		f.Close()
+		os.Remove(f.Name())
 	}()
 	if !strings.HasSuffix(root, "/") {
 		root += "/"
 	}
 	zw, _ := gzip.NewWriterLevel(f, gzip.BestCompression)
-	defer func() {
-		assert(zw.Close())
-	}()
 	tw := tar.NewWriter(zw)
-	defer func() {
-		assert(tw.Close())
-	}()
 	assert(filepath.Walk(root, func(p string, fi os.FileInfo, err error) error {
 		assert(err)
 		if fi.IsDir() || fi.Mode()&os.ModeSymlink == os.ModeSymlink {
@@ -213,5 +192,28 @@ func Pack(root string) (err error) {
 		assert(err)
 		return nil
 	}))
+	assert(tw.Close())
+	assert(zw.Close())
+	_, err = f.Seek(0, 0)
+	assert(err)
+	fn := copySelf()
+	g, err := os.OpenFile(fn, os.O_WRONLY|os.O_APPEND, 0755)
+	assert(err)
+	defer func() {
+		err := g.Close()
+		if e := recover(); e != nil {
+			panic(e)
+		}
+		assert(err)
+		assert(os.Remove(os.Args[0]))
+		assert(os.Rename(fn, os.Args[0]))
+		assert(os.Chmod(os.Args[0], 0755))
+	}()
+	n, err := io.Copy(g, f)
+	assert(err)
+	sig := append([]byte(magic), 0, 0, 0, 0)
+	binary.BigEndian.PutUint32(sig[4:], uint32(n))
+	_, err = g.Write(sig)
+	assert(err)
 	return
 }
