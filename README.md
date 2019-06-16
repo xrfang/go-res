@@ -10,9 +10,11 @@
 
 ### Pack
 
-    func Pack(root string) error
+    func Pack(root, target string) error
 
 Pack collect all files under directory `root` and its sub-directories, append them as tar.gz data at the end of the running application, then add a signature at the end to make the Pack action idempotent -- you can pack any directory many times, only the last operation's result is kept, all previous ones are discarded.
+
+> The **target** parameter should normally be "" (empty string), which means the running appliction. It is only used for cross-compiling situation where the target application is not runnable on the compiling platform.  In this case, a standalone "packer" is required to make the bundle. 
 
 ### Extract
 

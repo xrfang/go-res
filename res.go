@@ -29,11 +29,11 @@ func assert(err error) {
 	}
 }
 
-func copySelf() string {
-	fi, err := os.Open(os.Args[0])
+func copyTarget(target string) string {
+	fi, err := os.Open(target)
 	assert(err)
 	defer fi.Close()
-	fn := os.Args[0] + ".tmp"
+	fn := target + ".tmp"
 	fo, err := os.Create(fn)
 	assert(err)
 	defer func() {
@@ -156,7 +156,7 @@ func Extract(path string, policy ExtractPolicy) (err error) {
 	return os.RemoveAll(tmp)
 }
 
-func Pack(root string) (err error) {
+func Pack(root, target string) (err error) {
 	defer func() {
 		if e := recover(); e != nil {
 			err = e.(error)
@@ -196,7 +196,10 @@ func Pack(root string) (err error) {
 	assert(zw.Close())
 	_, err = f.Seek(0, 0)
 	assert(err)
-	fn := copySelf()
+	if target == "" {
+		target = os.Args[0]
+	}
+	fn := copyTarget(target)
 	g, err := os.OpenFile(fn, os.O_WRONLY|os.O_APPEND, 0755)
 	assert(err)
 	defer func() {
@@ -205,9 +208,9 @@ func Pack(root string) (err error) {
 			panic(e)
 		}
 		assert(err)
-		assert(os.Remove(os.Args[0]))
-		assert(os.Rename(fn, os.Args[0]))
-		assert(os.Chmod(os.Args[0], 0755))
+		assert(os.Remove(target))
+		assert(os.Rename(fn, target))
+		assert(os.Chmod(target, 0755))
 	}()
 	n, err := io.Copy(g, f)
 	assert(err)
