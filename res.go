@@ -113,6 +113,7 @@ func Extract(path string, policy ExtractPolicy) (err error) {
 	if path == "" || path == "/" {
 		panic(errors.New("Extract: path cannot be empty or root (/)"))
 	}
+	path = filepath.FromSlash(path)
 	if policy == Verbatim {
 		assert(os.RemoveAll(path))
 		extract(path)
