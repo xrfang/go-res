@@ -13,7 +13,10 @@ import (
 	"time"
 )
 
-type ExtractPolicy int
+type (
+	ExtractPolicy int
+	ExtractFilter func(string) bool
+)
 
 const (
 	NoOverwrite ExtractPolicy = iota
@@ -59,7 +62,7 @@ func copyTarget(target string) string {
 	return fn
 }
 
-func extract(path string) {
+func extract(path string, filter ExtractFilter) {
 	assert(os.MkdirAll(path, 0700))
 	offset := int64(len(magic) + 4)
 	exe, err := os.Executable()
@@ -89,6 +92,9 @@ func extract(path string) {
 			break
 		}
 		assert(err)
+		if filter != nil && !filter(hdr.Name) {
+			continue
+		}
 		fn := filepath.Join(path, hdr.Name)
 		assert(os.MkdirAll(filepath.Dir(fn), 0755))
 		func() {
@@ -104,23 +110,27 @@ func extract(path string) {
 	}
 }
 
-func Extract(path string, policy ExtractPolicy) (err error) {
+func Extract(path string, policy ExtractPolicy, filter ...ExtractFilter) (err error) {
 	defer func() {
 		if e := recover(); e != nil {
 			err = e.(error)
 		}
 	}()
+	var f ExtractFilter
+	if len(filter) > 0 {
+		f = filter[0]
+	}
 	if path == "" || path == "/" {
 		panic(errors.New("Extract: path cannot be empty or root (/)"))
 	}
 	path = filepath.FromSlash(path)
 	if policy == Verbatim {
 		assert(os.RemoveAll(path))
-		extract(path)
+		extract(path, f)
 		return
 	}
 	tmp := path + ".tmp"
-	extract(tmp)
+	extract(tmp, f)
 	isNewer := func(fn string, t time.Time) (res bool) {
 		dst := strings.Replace(fn, tmp, path, 1)
 		st, err := os.Stat(dst)
